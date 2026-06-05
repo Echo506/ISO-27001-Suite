@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría Interna — ISO 27001</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    .clause-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .clause-btn {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--text2);
+      transition: all 0.15s; font-family: 'IBM Plex Mono', monospace;
+    }
+    .clause-btn:hover { background: var(--bg3); color: var(--text); }
+    .clause-btn.active { background: var(--blue-dim); color: var(--blue); border-color: var(--blue); }
+    .question-item { padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; }
+    .question-item:last-child { border-bottom: none; }
+    .q-text { flex: 1; font-size: 13px; color: var(--text2); line-height: 1.5; }
+    .q-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .q-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; transition: all 0.15s; color: var(--text3);
+    }
+    .q-btn:hover { background: var(--bg3); }
+    .q-btn.active-ok { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+    .q-btn.active-nc { background: var(--coral-dim); border-color: var(--coral); color: var(--coral); }
+    .q-btn.active-obs { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+    .q-btn.active-na { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+    .finding-form { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-top: 8px; }
+    .tab-row { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tab {
+      padding: 10px 18px; font-size: 13px; cursor: pointer; color: var(--text2);
+      border-bottom: 2px solid transparent; background: none; border-top: none;
+      border-left: none; border-right: none; font-family: 'IBM Plex Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--green); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="../index.html"><i class="ti ti-shield-lock"></i>ISO <span>27001</span></a>
+    <div class="nav-links">
+      <a href="../index.html"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></a>
+      <a href="gap-analysis.html"><i class="ti ti-chart-dots"></i><span>Gap Analysis</span></a>
+      <a href="risk-management.html"><i class="ti ti-alert-triangle"></i><span>Riesgos</span></a>
+      <a href="audit.html" class="active"><i class="ti ti-clipboard-check"></i><span>Auditoría</span></a>
+      <a href="evidence.html"><i class="ti ti-folder-check"></i><span>Evidencias</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="page-header">
+      <h1>Auditoría interna</h1>
+      <p>Evalúa conformidad por cláusula. <span style="color:var(--green)">✓ Conforme</span> · <span style="color:var(--coral)">✗ No conformidad</span> · <span style="color:var(--amber)">! Observación</span> · <span style="color:var(--blue)">— N/A</span></p>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab active" onclick="switchTab('checklist')">Checklist</button>
+      <button class="tab" onclick="switchTab('findings')">Hallazgos <span id="findings-count" style="font-size:11px; color:var(--coral);"></span></button>
+    </div>
+
+    <div id="tab-checklist" class="tab-content active">
+      <div class="clause-nav" id="clause-nav"></div>
+      <div class="metrics-row" id="audit-metrics" style="margin-bottom:1.5rem;"></div>
+      <div class="card" id="checklist-container"></div>
+    </div>
+
+    <div id="tab-findings" class="tab-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <span style="font-size:14px; color:var(--text)">Hallazgos y no conformidades registradas</span>
+        <button class="btn" onclick="exportFindings()"><i class="ti ti-download"></i> Exportar</button>
+      </div>
+      <div class="card" id="findings-table-wrap">
+        <table>
+          <thead><tr><th>Ref.</th><th>Cláusula</th><th>Pregunta</th><th>Tipo</th><th>Notas</th></tr></thead>
+          <tbody id="findings-body"></tbody>
+        </table>
+        <p id="findings-empty" style="padding:1rem; color:var(--text3); font-size:13px; text-align:center;">Sin hallazgos registrados.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const CLAUSES = [
+      { id: 'C4', label: '4', name: 'Contexto de la organización', questions: [
+        'Se han identificado las partes interesadas y sus requisitos de SI',
+        'Se ha definido el alcance del SGSI documentalmente',
+        'Se comprenden los factores internos y externos que afectan al SGSI',
+        'El alcance del SGSI está disponible como información documentada'
+      ]},
+      { id: 'C5', label: '5', name: 'Liderazgo', questions: [
+        'La alta dirección demuestra liderazgo y compromiso con el SGSI',
+        'Existe una política de SI aprobada por la dirección y comunicada',
+        'Los roles y responsabilidades de SI están asignados y comunicados',
+        'La dirección asegura recursos suficientes para el SGSI'
+      ]},
+      { id: 'C6', label: '6', name: 'Planificación', questions: [
+        'Se realiza una evaluación de riesgos con criterios documentados',
+        'Existe un plan de tratamiento de riesgos aprobado',
+        'Se han definido objetivos de SI medibles y comunicados',
+        'Los planes para lograr los objetivos están documentados'
+      ]},
+      { id: 'C7', label: '7', name: 'Apoyo', questions: [
+        'Se han determinado y proporcionado los recursos necesarios',
+        'Las personas que afectan al SGSI son competentes y están formadas',
+        'Existe concienciación sobre la política y su contribución al SGSI',
+        'La comunicación interna y externa sobre SI está definida',
+        'La información documentada del SGSI está controlada y disponible'
+      ]},
+      { id: 'C8', label: '8', name: 'Operación', questions: [
+        'Los procesos para lograr los requisitos de SI están controlados',
+        'Se realiza evaluación de riesgos de SI a intervalos planificados',
+        'Se implementa el plan de tratamiento de riesgos',
+        'Los cambios planificados se controlan y se revisan las consecuencias'
+      ]},
+      { id: 'C9', label: '9', name: 'Evaluación del desempeño', questions: [
+        'Se monitorea, mide, analiza y evalúa el desempeño de SI',
+        'Se realizan auditorías internas a intervalos planificados',
+        'Existe un programa de auditoría interna documentado',
+        'La dirección revisa el SGSI a intervalos planificados',
+        'Se conservan registros de las revisiones por la dirección'
+      ]},
+      { id: 'C10', label: '10', name: 'Mejora', questions: [
+        'Las no conformidades se identifican y se toman acciones correctivas',
+        'Las acciones correctivas son adecuadas a la magnitud del efecto',
+        'Se conserva información documentada de las no conformidades',
+        'El SGSI mejora continuamente su conveniencia, adecuación y eficacia'
+      ]}
+    ];
+
+    let activeClause = 'C4';
+    let auditData = JSON.parse(localStorage.getItem('iso_audit_data') || '{}');
+    let findings = JSON.parse(localStorage.getItem('iso_findings') || '[]');
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['checklist','findings'][i]===tab));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+      if (tab==='findings') renderFindings();
+    }
+
+    function setAnswer(qKey, answer) {
+      if (auditData[qKey] === answer) { delete auditData[qKey]; } else { auditData[qKey] = answer; }
+      localStorage.setItem('iso_audit_data', JSON.stringify(auditData));
+      syncFindings();
+      renderChecklist();
+      renderMetrics();
+    }
+
+    function syncFindings() {
+      findings = [];
+      CLAUSES.forEach(cl => {
+        cl.questions.forEach((q,i) => {
+          const key = `${cl.id}-${i}`;
+          const ans = auditData[key];
+          if (ans === 'nc' || ans === 'obs') {
+            findings.push({ ref: key, clause: `Cláusula ${cl.label} — ${cl.name}`, question: q, type: ans, notes: auditData[key+'_notes'] || '' });
+          }
+        });
+      });
+      localStorage.setItem('iso_findings', JSON.stringify(findings));
+      const nc = findings.filter(f=>f.type==='nc').length;
+      document.getElementById('findings-count').textContent = nc ? `(${nc} NC)` : '';
+    }
+
+    function renderClauseNav() {
+      document.getElementById('clause-nav').innerHTML = CLAUSES.map(cl =>
+        `<button class="clause-btn ${activeClause===cl.id?'active':''}" onclick="setClause('${cl.id}')">C${cl.label}</button>`
+      ).join('');
+    }
+
+    function setClause(id) { activeClause = id; renderClauseNav(); renderChecklist(); }
+
+    function renderChecklist() {
+      const cl = CLAUSES.find(c => c.id === activeClause);
+      let html = `<div style="padding:0 0 12px; margin-bottom:12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:500; color:var(--text)">Cláusula ${cl.label} — ${cl.name}</div>`;
+      cl.questions.forEach((q, i) => {
+        const key = `${cl.id}-${i}`;
+        const ans = auditData[key];
+        html += `<div class="question-item">
+          <div class="q-text">${i+1}. ${q}</div>
+          <div class="q-actions">
+            <button class="q-btn ${ans==='ok'?'active-ok':''}" onclick="setAnswer('${key}','ok')" title="Conforme"><i class="ti ti-check"></i></button>
+            <button class="q-btn ${ans==='nc'?'active-nc':''}" onclick="setAnswer('${key}','nc')" title="No conformidad"><i class="ti ti-x"></i></button>
+            <button class="q-btn ${ans==='obs'?'active-obs':''}" onclick="setAnswer('${key}','obs')" title="Observación"><i class="ti ti-alert-circle"></i></button>
+            <button class="q-btn ${ans==='na'?'active-na':''}" onclick="setAnswer('${key}','na')" title="No aplica"><i class="ti ti-minus"></i></button>
+          </div>
+        </div>`;
+      });
+      document.getElementById('checklist-container').innerHTML = html;
+    }
+
+    function renderMetrics() {
+      let ok=0, nc=0, obs=0, total=0;
+      CLAUSES.forEach(cl => cl.questions.forEach((q,i) => {
+        const ans = auditData[`${cl.id}-${i}`];
+        total++;
+        if (ans==='ok') ok++;
+        else if (ans==='nc') nc++;
+        else if (ans==='obs') obs++;
+      }));
+      const answered = ok+nc+obs;
+      document.getElementById('audit-metrics').innerHTML = `
+        <div class="metric-card"><div class="metric-label">Respondidas</div><div class="metric-value">${answered}/${total}</div></div>
+        <div class="metric-card"><div class="metric-label">Conforme</div><div class="metric-value" style="color:var(--green)">${ok}</div></div>
+        <div class="metric-card"><div class="metric-label">No conformidades</div><div class="metric-value" style="color:var(--coral)">${nc}</div></div>
+        <div class="metric-card"><div class="metric-label">Observaciones</div><div class="metric-value" style="color:var(--amber)">${obs}</div></div>
+      `;
+    }
+
+    function renderFindings() {
+      const tbody = document.getElementById('findings-body');
+      const empty = document.getElementById('findings-empty');
+      if (!findings.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+      const typeLabel = {nc:'No conformidad', obs:'Observación'};
+      const typeClass = {nc:'badge-coral', obs:'badge-amber'};
+      tbody.innerHTML = findings.map(f => `
+        <tr>
+          <td class="mono" style="font-size:11px; color:var(--text3)">${f.ref}</td>
+          <td style="font-size:12px; color:var(--text2)">${f.clause}</td>
+          <td style="font-size:12px; color:var(--text)">${f.question}</td>
+          <td><span class="badge ${typeClass[f.type]}">${typeLabel[f.type]}</span></td>
+          <td style="font-size:12px; color:var(--text3)">${f.notes||'—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportFindings() {
+      let csv = 'Referencia,Cláusula,Pregunta,Tipo,Notas\n';
+      findings.forEach(f => { csv += `"${f.ref}","${f.clause}","${f.question}","${f.type==='nc'?'No conformidad':'Observación'}","${f.notes}"\n`; });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+      a.download = 'auditoria-interna-iso27001.csv';
+      a.click();
+    }
+
+    renderClauseNav();
+    renderChecklist();
+    renderMetrics();
+    syncFindings();
+  </script>
+</body>
+</html>

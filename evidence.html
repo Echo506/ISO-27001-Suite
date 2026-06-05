@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Evidencias — ISO 27001</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+    .doc-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+    .doc-card.status-approved { border-left: 3px solid var(--green); }
+    .doc-card.status-review { border-left: 3px solid var(--amber); }
+    .doc-card.status-pending { border-left: 3px solid var(--coral); }
+    .doc-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 10px; }
+    .doc-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+    .doc-ref { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--blue); margin-bottom: 8px; }
+    .doc-meta { font-size: 11px; color: var(--text3); display: flex; flex-direction: column; gap: 3px; }
+    .doc-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .status-select { font-size: 11px; padding: 4px 8px; border-radius: 20px; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-weight: 500; }
+    .status-select.status-approved { background: var(--green-dim); color: var(--green); }
+    .status-select.status-review { background: var(--amber-dim); color: var(--amber); }
+    .status-select.status-pending { background: var(--coral-dim); color: var(--coral); }
+    .form-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; }
+    .form-inline .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-inline label { font-size: 11px; color: var(--text3); }
+    .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; font-size: 14px; transition: color 0.15s; }
+    .del-btn:hover { color: var(--coral); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="../index.html"><i class="ti ti-shield-lock"></i>ISO <span>27001</span></a>
+    <div class="nav-links">
+      <a href="../index.html"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></a>
+      <a href="gap-analysis.html"><i class="ti ti-chart-dots"></i><span>Gap Analysis</span></a>
+      <a href="risk-management.html"><i class="ti ti-alert-triangle"></i><span>Riesgos</span></a>
+      <a href="audit.html"><i class="ti ti-clipboard-check"></i><span>Auditoría</span></a>
+      <a href="evidence.html" class="active"><i class="ti ti-folder-check"></i><span>Evidencias</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="page-header">
+      <h1>Gestión de evidencias</h1>
+      <p>Administra los documentos obligatorios del SGSI y vincula cada uno a su control correspondiente.</p>
+    </div>
+
+    <div class="metrics-row" id="ev-metrics"></div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-title">Agregar evidencia / documento</div>
+      <div class="form-inline">
+        <div class="form-group">
+          <label>Nombre del documento</label>
+          <input type="text" id="e-name" placeholder="Ej: Política de control de acceso" style="width:260px">
+        </div>
+        <div class="form-group">
+          <label>Referencia (control o cláusula)</label>
+          <input type="text" id="e-ref" placeholder="Ej: A.5.15 / Cláusula 6.1" style="width:200px">
+        </div>
+        <div class="form-group">
+          <label>Tipo de documento</label>
+          <select id="e-type" style="width:160px">
+            <option value="política">Política</option>
+            <option value="procedimiento">Procedimiento</option>
+            <option value="registro">Registro</option>
+            <option value="plan">Plan</option>
+            <option value="informe">Informe</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Responsable</label>
+          <input type="text" id="e-owner" placeholder="Nombre" style="width:140px">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="e-status" style="width:130px">
+            <option value="pending">Pendiente</option>
+            <option value="review">En revisión</option>
+            <option value="approved">Aprobado</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addEvidence()" style="align-self:flex-end"><i class="ti ti-plus"></i> Agregar</button>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:1rem; align-items:center; flex-wrap:wrap;">
+      <select id="f-status" onchange="renderDocs()" style="width:auto">
+        <option value="all">Todos los estados</option>
+        <option value="pending">Pendiente</option>
+        <option value="review">En revisión</option>
+        <option value="approved">Aprobado</option>
+      </select>
+      <select id="f-type" onchange="renderDocs()" style="width:auto">
+        <option value="all">Todos los tipos</option>
+        <option value="política">Política</option>
+        <option value="procedimiento">Procedimiento</option>
+        <option value="registro">Registro</option>
+        <option value="plan">Plan</option>
+        <option value="informe">Informe</option>
+        <option value="otro">Otro</option>
+      </select>
+      <button class="btn" onclick="exportEvidence()"><i class="ti ti-download"></i> Exportar CSV</button>
+      <button class="btn" onclick="loadDefaults()"><i class="ti ti-template"></i> Cargar plantilla ISO 27001</button>
+    </div>
+
+    <div class="doc-grid" id="doc-grid"></div>
+    <p id="doc-empty" style="color:var(--text3); font-size:13px; text-align:center; padding:2rem; display:none">Sin documentos. Agrega uno o carga la plantilla de documentos obligatorios.</p>
+  </main>
+
+  <script>
+    let evidence = JSON.parse(localStorage.getItem('iso_evidence') || '[]');
+    let counter = evidence.length;
+
+    const TYPE_ICONS = { política:'ti-file-text', procedimiento:'ti-list', registro:'ti-clipboard', plan:'ti-calendar', informe:'ti-chart-bar', otro:'ti-file' };
+    const TYPE_COLORS = { política:'var(--blue)', procedimiento:'var(--purple)', registro:'var(--green)', plan:'var(--amber)', informe:'var(--coral)', otro:'var(--text2)' };
+    const STATUS_LABELS = { pending:'Pendiente', review:'En revisión', approved:'Aprobado' };
+
+    function addEvidence() {
+      const name = document.getElementById('e-name').value.trim();
+      const ref = document.getElementById('e-ref').value.trim();
+      if (!name) { alert('Ingresa el nombre del documento.'); return; }
+      evidence.push({
+        id: 'DOC-'+String(++counter).padStart(3,'0'),
+        name, ref: ref||'—',
+        type: document.getElementById('e-type').value,
+        owner: document.getElementById('e-owner').value.trim()||'—',
+        status: document.getElementById('e-status').value,
+        date: new Date().toLocaleDateString('es-CR')
+      });
+      save();
+      document.getElementById('e-name').value='';
+      document.getElementById('e-ref').value='';
+      document.getElementById('e-owner').value='';
+    }
+
+    function updateStatus(id, status) {
+      const ev = evidence.find(e=>e.id===id);
+      if (ev) { ev.status = status; save(); }
+    }
+
+    function deleteDoc(id) {
+      if (!confirm('¿Eliminar este documento?')) return;
+      evidence = evidence.filter(e=>e.id!==id);
+      save();
+    }
+
+    function save() {
+      localStorage.setItem('iso_evidence', JSON.stringify(evidence));
+      renderDocs();
+      renderMetrics();
+    }
+
+    function renderDocs() {
+      const sf = document.getElementById('f-status').value;
+      const tf = document.getElementById('f-type').value;
+      const filtered = evidence.filter(e=>(sf==='all'||e.status===sf)&&(tf==='all'||e.type===tf));
+      const grid = document.getElementById('doc-grid');
+      const empty = document.getElementById('doc-empty');
+      if (!filtered.length) { grid.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+      grid.innerHTML = filtered.map(e => `
+        <div class="doc-card status-${e.status}">
+          <div class="doc-icon" style="background:rgba(255,255,255,0.05); color:${TYPE_COLORS[e.type]}"><i class="ti ${TYPE_ICONS[e.type]||'ti-file'}"></i></div>
+          <div class="doc-name">${e.name}</div>
+          <div class="doc-ref">${e.ref}</div>
+          <div class="doc-meta">
+            <span><i class="ti ti-tag" style="font-size:11px"></i> ${e.type}</span>
+            <span><i class="ti ti-user" style="font-size:11px"></i> ${e.owner}</span>
+            <span><i class="ti ti-calendar" style="font-size:11px"></i> ${e.date}</span>
+          </div>
+          <div class="doc-footer">
+            <select class="status-select status-${e.status}" onchange="updateStatus('${e.id}',this.value); this.className='status-select status-'+this.value;">
+              <option value="pending" ${e.status==='pending'?'selected':''}>Pendiente</option>
+              <option value="review" ${e.status==='review'?'selected':''}>En revisión</option>
+              <option value="approved" ${e.status==='approved'?'selected':''}>Aprobado</option>
+            </select>
+            <button class="del-btn" onclick="deleteDoc('${e.id}')"><i class="ti ti-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderMetrics() {
+      const total = evidence.length;
+      const approved = evidence.filter(e=>e.status==='approved').length;
+      const review = evidence.filter(e=>e.status==='review').length;
+      const pending = evidence.filter(e=>e.status==='pending').length;
+      document.getElementById('ev-metrics').innerHTML = `
+        <div class="metric-card"><div class="metric-label">Total documentos</div><div class="metric-value">${total}</div></div>
+        <div class="metric-card"><div class="metric-label">Aprobados</div><div class="metric-value" style="color:var(--green)">${approved}</div></div>
+        <div class="metric-card"><div class="metric-label">En revisión</div><div class="metric-value" style="color:var(--amber)">${review}</div></div>
+        <div class="metric-card"><div class="metric-label">Pendientes</div><div class="metric-value" style="color:var(--coral)">${pending}</div></div>
+      `;
+    }
+
+    function exportEvidence() {
+      let csv = 'ID,Nombre,Referencia,Tipo,Responsable,Estado,Fecha\n';
+      evidence.forEach(e => { csv += `"${e.id}","${e.name}","${e.ref}","${e.type}","${e.owner}","${STATUS_LABELS[e.status]}","${e.date}"\n`; });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+      a.download = 'evidencias-iso27001.csv';
+      a.click();
+    }
+
+    function loadDefaults() {
+      if (evidence.length && !confirm('Esto agregará los documentos obligatorios de ISO 27001. ¿Continuar?')) return;
+      const defaults = [
+        {name:'Política de seguridad de la información',ref:'A.5.1 / Cláusula 5.2',type:'política'},
+        {name:'Alcance del SGSI',ref:'Cláusula 4.3',type:'registro'},
+        {name:'Metodología de evaluación de riesgos',ref:'Cláusula 6.1.2',type:'procedimiento'},
+        {name:'Declaración de aplicabilidad (SoA)',ref:'Cláusula 6.1.3',type:'registro'},
+        {name:'Plan de tratamiento de riesgos',ref:'Cláusula 6.1.3',type:'plan'},
+        {name:'Objetivos de seguridad de la información',ref:'Cláusula 6.2',type:'registro'},
+        {name:'Registro de activos de información',ref:'A.5.9',type:'registro'},
+        {name:'Política de control de acceso',ref:'A.5.15',type:'política'},
+        {name:'Política de clasificación de la información',ref:'A.5.12',type:'política'},
+        {name:'Política de dispositivos móviles y teletrabajo',ref:'A.6.7 / A.8.1',type:'política'},
+        {name:'Procedimiento de gestión de incidentes',ref:'A.5.24',type:'procedimiento'},
+        {name:'Procedimiento de auditoría interna',ref:'Cláusula 9.2',type:'procedimiento'},
+        {name:'Procedimiento de acciones correctivas',ref:'Cláusula 10.1',type:'procedimiento'},
+        {name:'Plan de continuidad del negocio',ref:'A.5.29 / A.5.30',type:'plan'},
+        {name:'Política de copias de seguridad',ref:'A.8.13',type:'política'},
+        {name:'Política de uso aceptable',ref:'A.5.10',type:'política'},
+        {name:'Registros de formación y concienciación',ref:'Cláusula 7.2 / A.6.3',type:'registro'},
+        {name:'Resultados de la revisión por la dirección',ref:'Cláusula 9.3',type:'informe'},
+      ];
+      defaults.forEach(d => {
+        evidence.push({ id:'DOC-'+String(++counter).padStart(3,'0'), name:d.name, ref:d.ref, type:d.type, owner:'Por asignar', status:'pending', date:new Date().toLocaleDateString('es-CR') });
+      });
+      save();
+    }
+
+    renderDocs();
+    renderMetrics();
+  </script>
+</body>
+</html>

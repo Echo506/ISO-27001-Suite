@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gap Analysis — ISO 27001</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .filter-bar select { width: auto; }
+    .control-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .control-row:last-child { border-bottom: none; }
+    .control-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--blue); min-width: 52px; }
+    .control-name { flex: 1; font-size: 13px; color: var(--text2); }
+    .status-btn {
+      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 500;
+      cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap;
+    }
+    .status-none { background: rgba(255,255,255,0.05); color: var(--text3); }
+    .status-partial { background: var(--amber-dim); color: var(--amber); }
+    .status-full { background: var(--green-dim); color: var(--green); }
+    .status-na { background: var(--blue-dim); color: var(--blue); }
+    .domain-header {
+      padding: 10px 12px 8px;
+      font-size: 11px; font-weight: 500;
+      color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .summary-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+    .sum-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
+    .sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 500; }
+    .sum-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="../index.html">
+      <i class="ti ti-shield-lock"></i>ISO <span>27001</span>
+    </a>
+    <div class="nav-links">
+      <a href="../index.html"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></a>
+      <a href="gap-analysis.html" class="active"><i class="ti ti-chart-dots"></i><span>Gap Analysis</span></a>
+      <a href="risk-management.html"><i class="ti ti-alert-triangle"></i><span>Riesgos</span></a>
+      <a href="audit.html"><i class="ti ti-clipboard-check"></i><span>Auditoría</span></a>
+      <a href="evidence.html"><i class="ti ti-folder-check"></i><span>Evidencias</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="page-header">
+      <h1>Análisis de brechas</h1>
+      <p>Evalúa el nivel de implementación de cada control. Haz clic en el estado para cambiarlo.</p>
+    </div>
+
+    <div class="summary-bar">
+      <div class="sum-item"><div class="sum-val" id="s-total" style="color:var(--text)">93</div><div class="sum-lbl">Total controles</div></div>
+      <div class="sum-item"><div class="sum-val" id="s-full" style="color:var(--green)">0</div><div class="sum-lbl">Completo</div></div>
+      <div class="sum-item"><div class="sum-val" id="s-partial" style="color:var(--amber)">0</div><div class="sum-lbl">Parcial</div></div>
+      <div class="sum-item"><div class="sum-val" id="s-none" style="color:var(--coral)">0</div><div class="sum-lbl">Inexistente</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+      <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--text2)">Progreso general</span>
+        <span id="pct" class="mono" style="font-size:13px; color:var(--green)">0%</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-fill" id="progress-bar" style="width:0%; background:var(--green)"></div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <select id="filter-domain" onchange="renderControls()">
+        <option value="all">Todos los dominios</option>
+        <option value="A.5">A.5 — Organizacionales</option>
+        <option value="A.6">A.6 — Personas</option>
+        <option value="A.7">A.7 — Físicos</option>
+        <option value="A.8">A.8 — Tecnológicos</option>
+      </select>
+      <select id="filter-status" onchange="renderControls()">
+        <option value="all">Todos los estados</option>
+        <option value="none">Inexistente</option>
+        <option value="partial">Parcial</option>
+        <option value="full">Completo</option>
+        <option value="na">No aplica</option>
+      </select>
+      <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Exportar CSV</button>
+    </div>
+
+    <div class="card" id="controls-container"></div>
+  </main>
+
+  <script>
+    const CONTROLS = [
+      {id:'A.5.1',name:'Políticas de seguridad de la información',domain:'A.5'},
+      {id:'A.5.2',name:'Roles y responsabilidades de SI',domain:'A.5'},
+      {id:'A.5.3',name:'Segregación de funciones',domain:'A.5'},
+      {id:'A.5.4',name:'Responsabilidades de la dirección',domain:'A.5'},
+      {id:'A.5.5',name:'Contacto con autoridades',domain:'A.5'},
+      {id:'A.5.6',name:'Contacto con grupos de interés especial',domain:'A.5'},
+      {id:'A.5.7',name:'Inteligencia de amenazas',domain:'A.5'},
+      {id:'A.5.8',name:'SI en la gestión de proyectos',domain:'A.5'},
+      {id:'A.5.9',name:'Inventario de activos de información',domain:'A.5'},
+      {id:'A.5.10',name:'Uso aceptable de activos',domain:'A.5'},
+      {id:'A.5.11',name:'Devolución de activos',domain:'A.5'},
+      {id:'A.5.12',name:'Clasificación de la información',domain:'A.5'},
+      {id:'A.5.13',name:'Etiquetado de la información',domain:'A.5'},
+      {id:'A.5.14',name:'Transferencia de información',domain:'A.5'},
+      {id:'A.5.15',name:'Control de acceso',domain:'A.5'},
+      {id:'A.5.16',name:'Gestión de identidad',domain:'A.5'},
+      {id:'A.5.17',name:'Información de autenticación',domain:'A.5'},
+      {id:'A.5.18',name:'Derechos de acceso',domain:'A.5'},
+      {id:'A.5.19',name:'SI en relaciones con proveedores',domain:'A.5'},
+      {id:'A.5.20',name:'Acuerdos con proveedores',domain:'A.5'},
+      {id:'A.5.21',name:'SI en la cadena de suministro TIC',domain:'A.5'},
+      {id:'A.5.22',name:'Seguimiento y revisión de servicios de proveedores',domain:'A.5'},
+      {id:'A.5.23',name:'SI para el uso de servicios en la nube',domain:'A.5'},
+      {id:'A.5.24',name:'Planificación de gestión de incidentes de SI',domain:'A.5'},
+      {id:'A.5.25',name:'Evaluación y decisión sobre eventos de SI',domain:'A.5'},
+      {id:'A.5.26',name:'Respuesta a incidentes de SI',domain:'A.5'},
+      {id:'A.5.27',name:'Aprendizaje de incidentes de SI',domain:'A.5'},
+      {id:'A.5.28',name:'Recopilación de evidencia',domain:'A.5'},
+      {id:'A.5.29',name:'SI durante la interrupción',domain:'A.5'},
+      {id:'A.5.30',name:'Preparación TIC para continuidad de negocio',domain:'A.5'},
+      {id:'A.5.31',name:'Requisitos legales, estatutarios, reglamentarios',domain:'A.5'},
+      {id:'A.5.32',name:'Derechos de propiedad intelectual',domain:'A.5'},
+      {id:'A.5.33',name:'Protección de registros',domain:'A.5'},
+      {id:'A.5.34',name:'Privacidad y protección de datos personales',domain:'A.5'},
+      {id:'A.5.35',name:'Revisión independiente de SI',domain:'A.5'},
+      {id:'A.5.36',name:'Cumplimiento de políticas y normas de SI',domain:'A.5'},
+      {id:'A.5.37',name:'Procedimientos de operación documentados',domain:'A.5'},
+      {id:'A.6.1',name:'Investigación de antecedentes',domain:'A.6'},
+      {id:'A.6.2',name:'Términos y condiciones de empleo',domain:'A.6'},
+      {id:'A.6.3',name:'Concienciación, educación y formación en SI',domain:'A.6'},
+      {id:'A.6.4',name:'Proceso disciplinario',domain:'A.6'},
+      {id:'A.6.5',name:'Responsabilidades al término del empleo',domain:'A.6'},
+      {id:'A.6.6',name:'Acuerdos de confidencialidad',domain:'A.6'},
+      {id:'A.6.7',name:'Trabajo remoto',domain:'A.6'},
+      {id:'A.6.8',name:'Reporte de eventos de SI',domain:'A.6'},
+      {id:'A.7.1',name:'Perímetros de seguridad física',domain:'A.7'},
+      {id:'A.7.2',name:'Entrada física',domain:'A.7'},
+      {id:'A.7.3',name:'Seguridad de oficinas, salas e instalaciones',domain:'A.7'},
+      {id:'A.7.4',name:'Monitoreo de seguridad física',domain:'A.7'},
+      {id:'A.7.5',name:'Protección contra amenazas físicas y ambientales',domain:'A.7'},
+      {id:'A.7.6',name:'Trabajo en áreas seguras',domain:'A.7'},
+      {id:'A.7.7',name:'Escritorio y pantalla despejados',domain:'A.7'},
+      {id:'A.7.8',name:'Ubicación y protección de equipos',domain:'A.7'},
+      {id:'A.7.9',name:'Seguridad de activos fuera de las instalaciones',domain:'A.7'},
+      {id:'A.7.10',name:'Medios de almacenamiento',domain:'A.7'},
+      {id:'A.7.11',name:'Servicios de suministro',domain:'A.7'},
+      {id:'A.7.12',name:'Seguridad del cableado',domain:'A.7'},
+      {id:'A.7.13',name:'Mantenimiento de equipos',domain:'A.7'},
+      {id:'A.7.14',name:'Eliminación o reutilización segura de equipos',domain:'A.7'},
+      {id:'A.8.1',name:'Dispositivos de punto final del usuario',domain:'A.8'},
+      {id:'A.8.2',name:'Derechos de acceso privilegiado',domain:'A.8'},
+      {id:'A.8.3',name:'Restricción de acceso a la información',domain:'A.8'},
+      {id:'A.8.4',name:'Acceso al código fuente',domain:'A.8'},
+      {id:'A.8.5',name:'Autenticación segura',domain:'A.8'},
+      {id:'A.8.6',name:'Gestión de la capacidad',domain:'A.8'},
+      {id:'A.8.7',name:'Protección contra malware',domain:'A.8'},
+      {id:'A.8.8',name:'Gestión de vulnerabilidades técnicas',domain:'A.8'},
+      {id:'A.8.9',name:'Gestión de la configuración',domain:'A.8'},
+      {id:'A.8.10',name:'Eliminación de la información',domain:'A.8'},
+      {id:'A.8.11',name:'Enmascaramiento de datos',domain:'A.8'},
+      {id:'A.8.12',name:'Prevención de fuga de datos',domain:'A.8'},
+      {id:'A.8.13',name:'Copia de seguridad de la información',domain:'A.8'},
+      {id:'A.8.14',name:'Redundancia de instalaciones de procesamiento',domain:'A.8'},
+      {id:'A.8.15',name:'Registro de actividades (logging)',domain:'A.8'},
+      {id:'A.8.16',name:'Actividades de monitoreo',domain:'A.8'},
+      {id:'A.8.17',name:'Sincronización de relojes',domain:'A.8'},
+      {id:'A.8.18',name:'Uso de programas de utilidad privilegiados',domain:'A.8'},
+      {id:'A.8.19',name:'Instalación de software en sistemas operativos',domain:'A.8'},
+      {id:'A.8.20',name:'Seguridad de redes',domain:'A.8'},
+      {id:'A.8.21',name:'Seguridad de los servicios de red',domain:'A.8'},
+      {id:'A.8.22',name:'Segregación de redes',domain:'A.8'},
+      {id:'A.8.23',name:'Filtrado web',domain:'A.8'},
+      {id:'A.8.24',name:'Uso de criptografía',domain:'A.8'},
+      {id:'A.8.25',name:'Ciclo de vida de desarrollo seguro',domain:'A.8'},
+      {id:'A.8.26',name:'Requisitos de seguridad de aplicaciones',domain:'A.8'},
+      {id:'A.8.27',name:'Principios de arquitectura segura',domain:'A.8'},
+      {id:'A.8.28',name:'Codificación segura',domain:'A.8'},
+      {id:'A.8.29',name:'Pruebas de seguridad en desarrollo y aceptación',domain:'A.8'},
+      {id:'A.8.30',name:'Desarrollo subcontratado',domain:'A.8'},
+      {id:'A.8.31',name:'Separación de entornos de desarrollo, prueba y producción',domain:'A.8'},
+      {id:'A.8.32',name:'Gestión de cambios',domain:'A.8'},
+      {id:'A.8.33',name:'Información de prueba',domain:'A.8'},
+      {id:'A.8.34',name:'Protección de sistemas de información durante auditoría',domain:'A.8'},
+    ];
+
+    const STATUSES = ['none','partial','full','na'];
+    const STATUS_LABELS = {none:'Inexistente', partial:'Parcial', full:'Completo', na:'N/A'};
+    const STATUS_CLASSES = {none:'status-none', partial:'status-partial', full:'status-full', na:'status-na'};
+
+    let gapData = JSON.parse(localStorage.getItem('iso_gap_data') || '{}');
+
+    function cycleStatus(id) {
+      const current = gapData[id] || 'none';
+      const idx = STATUSES.indexOf(current);
+      gapData[id] = STATUSES[(idx + 1) % STATUSES.length];
+      localStorage.setItem('iso_gap_data', JSON.stringify(gapData));
+      const saved = CONTROLS.map(c => ({...c, status: gapData[c.id] || 'none'})).filter(c => c.status !== 'none');
+      localStorage.setItem('iso_gap', JSON.stringify(saved));
+      renderControls();
+      updateSummary();
+    }
+
+    function renderControls() {
+      const domainFilter = document.getElementById('filter-domain').value;
+      const statusFilter = document.getElementById('filter-status').value;
+      const container = document.getElementById('controls-container');
+      const domains = ['A.5','A.6','A.7','A.8'];
+      const domainNames = {'A.5':'A.5 — Controles organizacionales (37)','A.6':'A.6 — Controles de personas (8)','A.7':'A.7 — Controles físicos (14)','A.8':'A.8 — Controles tecnológicos (34)'};
+      let html = '';
+      domains.forEach(domain => {
+        if (domainFilter !== 'all' && domainFilter !== domain) return;
+        const controls = CONTROLS.filter(c => c.domain === domain && (statusFilter === 'all' || (gapData[c.id] || 'none') === statusFilter));
+        if (!controls.length) return;
+        html += `<div class="domain-header">${domainNames[domain]}</div>`;
+        controls.forEach(c => {
+          const status = gapData[c.id] || 'none';
+          html += `<div class="control-row">
+            <span class="control-id">${c.id}</span>
+            <span class="control-name">${c.name}</span>
+            <button class="status-btn ${STATUS_CLASSES[status]}" onclick="cycleStatus('${c.id}')">${STATUS_LABELS[status]}</button>
+          </div>`;
+        });
+      });
+      container.innerHTML = html || '<p style="padding:1rem; color:var(--text3)">Sin resultados para estos filtros.</p>';
+    }
+
+    function updateSummary() {
+      let full=0, partial=0, none=0;
+      CONTROLS.forEach(c => {
+        const s = gapData[c.id] || 'none';
+        if (s==='full') full++;
+        else if (s==='partial') partial++;
+        else if (s==='none') none++;
+      });
+      document.getElementById('s-full').textContent = full;
+      document.getElementById('s-partial').textContent = partial;
+      document.getElementById('s-none').textContent = none;
+      const pct = Math.round((full / 93) * 100);
+      document.getElementById('pct').textContent = pct + '%';
+      document.getElementById('progress-bar').style.width = pct + '%';
+    }
+
+    function exportCSV() {
+      let csv = 'ID,Control,Dominio,Estado\n';
+      CONTROLS.forEach(c => {
+        csv += `"${c.id}","${c.name}","${c.domain}","${STATUS_LABELS[gapData[c.id]||'none']}"\n`;
+      });
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gap-analysis-iso27001.csv';
+      a.click();
+    }
+
+    renderControls();
+    updateSummary();
+  </script>
+</body>
+</html>

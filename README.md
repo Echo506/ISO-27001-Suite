@@ -38,11 +38,11 @@ It is intentionally simple: everything runs in the browser so you can use it for
 
 ## 🛠 Tech stack
 
-| Area       | What is used                |
-|-----------|-----------------------------||
-| Frontend  | HTML, CSS, JavaScript       |
-| Storage   | Browser-based / file export |
-| Platform  | 100% client-side, no server |
+| Area     | What is used                  |
+|----------|-------------------------------|
+| Frontend | HTML, CSS, JavaScript         |
+| Storage  | Browser-based / file export   |
+| Platform | 100% client-side, no server   |
 
 Planned ideas:
 
